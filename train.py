@@ -146,9 +146,9 @@ if __name__ == '__main__':
         currentDT.day,
         currentDT.hour,
         currentDT.minute,
-        "_".join(str(testing_patient_id)))
+        "_".join(map(str, testing_patient_id)))
     if not log_root.exists():
-        log_root.mkdir()
+        log_root.mkdir(parents=True, exist_ok=True)
     writer = SummaryWriter(logdir=str(log_root))
     print("Tensorboard visualization at {}".format(str(log_root)))
 
@@ -188,6 +188,17 @@ if __name__ == '__main__':
     validation_loader = torch.utils.data.DataLoader(dataset=validation_dataset, batch_size=batch_size, shuffle=False,
                                                     num_workers=batch_size)
 
+    # Detect device (CUDA, MPS, or CPU)
+    if torch.cuda.is_available():
+        device = torch.device('cuda')
+        print("Training on CUDA (GPU)")
+    elif torch.backends.mps.is_available():
+        device = torch.device('mps')
+        print("Training on MPS (Apple Silicon GPU)")
+    else:
+        device = torch.device('cpu')
+        print("WARNING: Training on CPU - this will be VERY slow!")
+
     depth_estimation_model = models.FCDenseNet57(n_classes=1)
     # Initialize the depth estimation network with Kaiming He initialization
     depth_estimation_model = utils.init_net(depth_estimation_model, type="kaiming", mode="fan_in",
@@ -197,7 +208,11 @@ if __name__ == '__main__':
     depth_estimation_model = torch.nn.DataParallel(depth_estimation_model)
     # Summary network architecture
     if display_architecture:
-        torchsummary.summary(depth_estimation_model, input_size=(3, height, width))
+        try:
+            torchsummary.summary(depth_estimation_model, input_size=(3, height, width), device=str(device))
+        except Exception as e:
+            print(f"Warning: Could not display architecture summary: {e}")
+            print("Skipping architecture summary...")
     # Optimizer
     optimizer = torch.optim.SGD(depth_estimation_model.parameters(), lr=max_lr, momentum=0.9)
     lr_scheduler = scheduler.CyclicLR(optimizer, base_lr=min_lr, max_lr=max_lr, step_size=num_iter)
@@ -252,22 +267,22 @@ if __name__ == '__main__':
             tq.set_description('Epoch {}, lr {}'.format(epoch, lr_scheduler.get_lr()))
 
             with torch.no_grad():
-                colors_1 = colors_1.cuda()
-                colors_2 = colors_2.cuda()
-                sparse_depths_1 = sparse_depths_1.cuda()
-                sparse_depths_2 = sparse_depths_2.cuda()
-                sparse_depth_masks_1 = sparse_depth_masks_1.cuda()
-                sparse_depth_masks_2 = sparse_depth_masks_2.cuda()
-                sparse_flows_1 = sparse_flows_1.cuda()
-                sparse_flows_2 = sparse_flows_2.cuda()
-                sparse_flow_masks_1 = sparse_flow_masks_1.cuda()
-                sparse_flow_masks_2 = sparse_flow_masks_2.cuda()
-                boundaries = boundaries.cuda()
-                rotations_1_wrt_2 = rotations_1_wrt_2.cuda()
-                rotations_2_wrt_1 = rotations_2_wrt_1.cuda()
-                translations_1_wrt_2 = translations_1_wrt_2.cuda()
-                translations_2_wrt_1 = translations_2_wrt_1.cuda()
-                intrinsics = intrinsics.cuda()
+                colors_1 = colors_1.to(device)
+                colors_2 = colors_2.to(device)
+                sparse_depths_1 = sparse_depths_1.to(device)
+                sparse_depths_2 = sparse_depths_2.to(device)
+                sparse_depth_masks_1 = sparse_depth_masks_1.to(device)
+                sparse_depth_masks_2 = sparse_depth_masks_2.to(device)
+                sparse_flows_1 = sparse_flows_1.to(device)
+                sparse_flows_2 = sparse_flows_2.to(device)
+                sparse_flow_masks_1 = sparse_flow_masks_1.to(device)
+                sparse_flow_masks_2 = sparse_flow_masks_2.to(device)
+                boundaries = boundaries.to(device)
+                rotations_1_wrt_2 = rotations_1_wrt_2.to(device)
+                rotations_2_wrt_1 = rotations_2_wrt_1.to(device)
+                translations_1_wrt_2 = translations_1_wrt_2.to(device)
+                translations_2_wrt_1 = translations_2_wrt_1.to(device)
+                intrinsics = intrinsics.to(device)
 
             colors_1 = boundaries * colors_1
             colors_2 = boundaries * colors_2
@@ -385,22 +400,22 @@ if __name__ == '__main__':
                     rotations_2_wrt_1, translations_1_wrt_2, translations_2_wrt_1, intrinsics,
                     folders, file_names) in enumerate(validation_loader):
 
-                colors_1 = colors_1.cuda()
-                colors_2 = colors_2.cuda()
-                sparse_depths_1 = sparse_depths_1.cuda()
-                sparse_depths_2 = sparse_depths_2.cuda()
-                sparse_depth_masks_1 = sparse_depth_masks_1.cuda()
-                sparse_depth_masks_2 = sparse_depth_masks_2.cuda()
-                sparse_flows_1 = sparse_flows_1.cuda()
-                sparse_flows_2 = sparse_flows_2.cuda()
-                sparse_flow_masks_1 = sparse_flow_masks_1.cuda()
-                sparse_flow_masks_2 = sparse_flow_masks_2.cuda()
-                boundaries = boundaries.cuda()
-                rotations_1_wrt_2 = rotations_1_wrt_2.cuda()
-                rotations_2_wrt_1 = rotations_2_wrt_1.cuda()
-                translations_1_wrt_2 = translations_1_wrt_2.cuda()
-                translations_2_wrt_1 = translations_2_wrt_1.cuda()
-                intrinsics = intrinsics.cuda()
+                colors_1 = colors_1.to(device)
+                colors_2 = colors_2.to(device)
+                sparse_depths_1 = sparse_depths_1.to(device)
+                sparse_depths_2 = sparse_depths_2.to(device)
+                sparse_depth_masks_1 = sparse_depth_masks_1.to(device)
+                sparse_depth_masks_2 = sparse_depth_masks_2.to(device)
+                sparse_flows_1 = sparse_flows_1.to(device)
+                sparse_flows_2 = sparse_flows_2.to(device)
+                sparse_flow_masks_1 = sparse_flow_masks_1.to(device)
+                sparse_flow_masks_2 = sparse_flow_masks_2.to(device)
+                boundaries = boundaries.to(device)
+                rotations_1_wrt_2 = rotations_1_wrt_2.to(device)
+                rotations_2_wrt_1 = rotations_2_wrt_1.to(device)
+                translations_1_wrt_2 = translations_1_wrt_2.to(device)
+                translations_2_wrt_1 = translations_2_wrt_1.to(device)
+                intrinsics = intrinsics.to(device)
 
                 colors_1 = boundaries * colors_1
                 colors_2 = boundaries * colors_2

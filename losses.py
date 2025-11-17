@@ -13,16 +13,23 @@ import torch
 from torch import nn
 
 
+def get_device(tensor):
+    """Helper function to get device from tensor (supports CUDA, MPS, CPU)"""
+    return tensor.device
+
+
 # Use scale invariant loss for student learning from teacher
 class ScaleInvariantLoss(nn.Module):
     def __init__(self, epsilon=1.0e-8):
         super(ScaleInvariantLoss, self).__init__()
-        self.epsilon = torch.tensor(epsilon).float().cuda()
+        self.epsilon_value = epsilon
 
     def forward(self, x):
         predicted_depths, goal_depths, boundaries = x
-        depth_ratio_map = torch.log(boundaries * predicted_depths + self.epsilon) - \
-                          torch.log(boundaries * goal_depths + self.epsilon)
+        device = get_device(predicted_depths)
+        epsilon = torch.tensor(self.epsilon_value, device=device, dtype=torch.float32)
+        depth_ratio_map = torch.log(boundaries * predicted_depths + epsilon) - \
+                          torch.log(boundaries * goal_depths + epsilon)
 
         weighted_sum = torch.sum(boundaries, dim=(1, 2, 3))
         loss_1 = torch.sum(depth_ratio_map * depth_ratio_map,
@@ -35,21 +42,22 @@ class ScaleInvariantLoss(nn.Module):
 class NormalizedWeightedMaskedL2Loss(nn.Module):
     def __init__(self, epsilon=1.0):
         super(NormalizedWeightedMaskedL2Loss, self).__init__()
-        self.epsilon = torch.tensor(epsilon).float().cuda()
+        self.epsilon_value = epsilon
 
     def forward(self, x):
         depth_maps, warped_depth_maps, intersect_masks, translations = x
-        # loss = torch.sum(torch.log(1.0 + torch.abs(intersect_masks * (depth_maps - warped_depth_maps))), dim=(1, 2, 3)) / (self.epsilon + torch.sum(intersect_masks, dim=(1, 2, 3)))
+        device = get_device(depth_maps)
+        # loss = torch.sum(torch.log(1.0 + torch.abs(intersect_masks * (depth_maps - warped_depth_maps))), dim=(1, 2, 3)) / (self.epsilon_value + torch.sum(intersect_masks, dim=(1, 2, 3)))
 
         translations = translations.reshape(-1, 3, 1)
         translation_norms = torch.sqrt(torch.sum(translations * translations, dim=(1, 2))).reshape(-1)
         translation_weights = (
-                torch.tensor(1.0).float().cuda() / (torch.tensor(1.0e-8).float().cuda() + translation_norms)).reshape(
+                torch.tensor(1.0, device=device, dtype=torch.float32) / (torch.tensor(1.0e-8, device=device, dtype=torch.float32) + translation_norms)).reshape(
             -1)
         loss = torch.sum(intersect_masks * (depth_maps - warped_depth_maps) * (depth_maps - warped_depth_maps),
                          dim=(1, 2, 3), keepdim=False) / (0.5 * torch.sum(
             intersect_masks * (depth_maps * depth_maps + warped_depth_maps * warped_depth_maps), dim=(1, 2, 3),
-            keepdim=False) + self.epsilon)
+            keepdim=False) + self.epsilon_value)
         loss = torch.sum(loss * translation_weights) / torch.sum(translation_weights)
         return loss
 
@@ -57,7 +65,7 @@ class NormalizedWeightedMaskedL2Loss(nn.Module):
 class SparseMaskedL1Loss(nn.Module):
     def __init__(self, epsilon=1.0):
         super(SparseMaskedL1Loss, self).__init__()
-        self.epsilon = torch.tensor(epsilon).float().cuda()
+        self.epsilon_value = epsilon
 
     def forward(self, x):
         flows, flows_from_depth, sparse_masks = x
@@ -69,7 +77,7 @@ class SparseMaskedL1Loss(nn.Module):
 class SparseMaskedL1LossDisplay(nn.Module):
     def __init__(self, epsilon=1.0):
         super(SparseMaskedL1LossDisplay, self).__init__()
-        self.epsilon = torch.tensor(epsilon).float().cuda()
+        self.epsilon_value = epsilon
 
     def forward(self, x):
         flows, flows_from_depth, sparse_masks = x
@@ -82,7 +90,7 @@ class SparseMaskedL1LossDisplay(nn.Module):
 class MaskedL1Loss(nn.Module):
     def __init__(self, epsilon=1.0):
         super(MaskedL1Loss, self).__init__()
-        self.epsilon = torch.tensor(epsilon).float().cuda()
+        self.epsilon_value = epsilon
 
     def forward(self, x):
         images, twice_warped_images, intersect_masks = x
@@ -113,14 +121,23 @@ class NormalizedDistanceLoss(nn.Module):
     def __init__(self, height, width, eps=1.0e-5):
         super(NormalizedDistanceLoss, self).__init__()
         self.eps = eps
-        self.y_grid, self.x_grid = torch.meshgrid(
-            [torch.arange(start=0, end=height, dtype=torch.float32).cuda(),
-             torch.arange(start=0, end=width, dtype=torch.float32).cuda()])
-        self.y_grid = self.y_grid.reshape(1, 1, height, width)
-        self.x_grid = self.x_grid.reshape(1, 1, height, width)
+        self.height = height
+        self.width = width
+        self.x_grid = None
+        self.y_grid = None
 
     def forward(self, x):
         depth_maps, warped_depth_maps, intersect_masks, intrinsics = x
+        device = get_device(depth_maps)
+
+        # Create grids on the correct device (only once)
+        if self.x_grid is None or self.x_grid.device != device:
+            y_grid, x_grid = torch.meshgrid(
+                [torch.arange(start=0, end=self.height, dtype=torch.float32, device=device),
+                 torch.arange(start=0, end=self.width, dtype=torch.float32, device=device)])
+            self.y_grid = y_grid.reshape(1, 1, self.height, self.width)
+            self.x_grid = x_grid.reshape(1, 1, self.width, self.width)
+
         fx = intrinsics[:, 0, 0].reshape(-1, 1, 1, 1)
         fy = intrinsics[:, 1, 1].reshape(-1, 1, 1, 1)
         cx = intrinsics[:, 0, 2].reshape(-1, 1, 1, 1)
@@ -167,14 +184,16 @@ class NormalizedL1Loss(nn.Module):
 class MaskedScaleInvariantLoss(nn.Module):
     def __init__(self, epsilon=1.0e-8):
         super(MaskedScaleInvariantLoss, self).__init__()
-        self.epsilon = torch.tensor(epsilon).float().cuda()
-        self.zero = torch.tensor(0.0).float().cuda()
+        self.epsilon_value = epsilon
 
     def forward(self, x):
         absolute_depth_estimations, input_sparse_depths, input_sparse_masks = x
+        device = get_device(absolute_depth_estimations)
+        epsilon = torch.tensor(self.epsilon_value, device=device, dtype=torch.float32)
+        zero = torch.tensor(0.0, device=device, dtype=torch.float32)
 
-        depth_ratio_map = torch.where(input_sparse_depths < 0.5, self.zero,
-                                      torch.log(absolute_depth_estimations + self.epsilon) -
+        depth_ratio_map = torch.where(input_sparse_depths < 0.5, zero,
+                                      torch.log(absolute_depth_estimations + epsilon) -
                                       torch.log(input_sparse_depths))
 
         weighted_sum = torch.sum(input_sparse_masks, dim=(1, 2, 3))

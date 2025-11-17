@@ -329,13 +329,14 @@ def images_warping(images, source_coord_w_flat, source_coord_h_flat, padding_mod
 
 def _bilinear_interpolate(im, x, y, padding_mode="zeros"):
     num_batch, height, width, channels = im.shape
+    device = get_device(im)
     # Range [-1, 1]
-    grid = torch.cat([torch.tensor(2.0).float().cuda() *
-                      (x.reshape(num_batch, height, width, 1) / torch.tensor(width).float().cuda())
-                      - torch.tensor(1.0).float().cuda(), torch.tensor(2.0).float().cuda() * (
+    grid = torch.cat([torch.tensor(2.0, device=device, dtype=torch.float32) *
+                      (x.reshape(num_batch, height, width, 1) / torch.tensor(width, device=device, dtype=torch.float32))
+                      - torch.tensor(1.0, device=device, dtype=torch.float32), torch.tensor(2.0, device=device, dtype=torch.float32) * (
                               y.reshape(num_batch, height, width, 1) / torch.tensor(
-                          height).float().cuda()) - torch.tensor(
-        1.0).float().cuda()], dim=-1)
+                          height, device=device, dtype=torch.float32)) - torch.tensor(
+        1.0, device=device, dtype=torch.float32)], dim=-1)
 
     return torch.nn.functional.grid_sample(input=im.permute(0, 3, 1, 2), grid=grid, mode='bilinear',
                                            padding_mode=padding_mode).permute(0, 2, 3, 1)
@@ -344,21 +345,24 @@ def _bilinear_interpolate(im, x, y, padding_mode="zeros"):
 class DepthScalingLayer(nn.Module):
     def __init__(self, epsilon=1.0e-8):
         super(DepthScalingLayer, self).__init__()
-        self.epsilon = torch.tensor(epsilon).float().cuda()
-        self.zero = torch.tensor(0.0).float().cuda()
-        self.one = torch.tensor(1.0).float().cuda()
+        self.epsilon = epsilon
 
     def forward(self, x):
         absolute_depth_estimations, input_sparse_depths, input_weighted_sparse_masks = x
+        device = get_device(absolute_depth_estimations)
+        epsilon = torch.tensor(self.epsilon, device=device, dtype=torch.float32)
+        zero = torch.tensor(0.0, device=device, dtype=torch.float32)
+        one = torch.tensor(1.0, device=device, dtype=torch.float32)
+
         # Use sparse depth values which are greater than a certain ratio of the mean value of the sparse depths to avoid
         # unstability of scale recovery
-        input_sparse_binary_masks = torch.where(input_weighted_sparse_masks > 1.0e-8, self.one, self.zero)
+        input_sparse_binary_masks = torch.where(input_weighted_sparse_masks > 1.0e-8, one, zero)
         mean_sparse_depths = torch.sum(input_sparse_depths * input_sparse_binary_masks, dim=(1, 2, 3),
                                        keepdim=True) / torch.sum(input_sparse_binary_masks, dim=(1, 2, 3), keepdim=True)
-        above_mean_masks = torch.where(input_sparse_depths > 0.5 * mean_sparse_depths, self.one, self.zero)
+        above_mean_masks = torch.where(input_sparse_depths > 0.5 * mean_sparse_depths, one, zero)
 
         # Introduce a criteria to reduce the variation of scale maps
-        sparse_scale_maps = input_sparse_depths * above_mean_masks / (self.epsilon + absolute_depth_estimations)
+        sparse_scale_maps = input_sparse_depths * above_mean_masks / (epsilon + absolute_depth_estimations)
         mean_scales = torch.sum(sparse_scale_maps, dim=(1, 2, 3), keepdim=True) / torch.sum(above_mean_masks,
                                                                                             dim=(1, 2, 3), keepdim=True)
         centered_sparse_scale_maps = sparse_scale_maps - above_mean_masks * mean_scales
@@ -382,18 +386,19 @@ class FlowfromDepthLayer(torch.nn.Module):
 def _warp_coordinate_generate(depth_maps_1, img_masks, translation_vectors, rotation_matrices, intrinsic_matrices):
     # Generate a meshgrid for each depth map to calculate value
     num_batch, height, width, channels = depth_maps_1.shape
+    device = get_device(depth_maps_1)
 
     y_grid, x_grid = torch.meshgrid(
-        [torch.arange(start=0, end=height, dtype=torch.float32).cuda(),
-         torch.arange(start=0, end=width, dtype=torch.float32).cuda()])
+        [torch.arange(start=0, end=height, dtype=torch.float32, device=device),
+         torch.arange(start=0, end=width, dtype=torch.float32, device=device)])
 
     x_grid = x_grid.reshape(1, height, width, 1)
     y_grid = y_grid.reshape(1, height, width, 1)
 
-    ones_grid = torch.ones((1, height, width, 1), dtype=torch.float32).cuda()
+    ones_grid = torch.ones((1, height, width, 1), dtype=torch.float32, device=device)
 
     # intrinsic_matrix_inverse = intrinsic_matrix.inverse()
-    eye = torch.eye(3).float().cuda().reshape(1, 3, 3).expand(intrinsic_matrices.shape[0], -1, -1)
+    eye = torch.eye(3, dtype=torch.float32, device=device).reshape(1, 3, 3).expand(intrinsic_matrices.shape[0], -1, -1)
     intrinsic_matrices_inverse, _ = torch.solve(eye, intrinsic_matrices)
 
     rotation_matrices_inverse = rotation_matrices.transpose(1, 2)
@@ -412,7 +417,7 @@ def _warp_coordinate_generate(depth_maps_1, img_masks, translation_vectors, rota
                                                                       width, 1))
 
     # expand operation doesn't allocate new memory (repeat does)
-    depth_maps_2_calculate = torch.tensor(1.0e30).float().cuda() * (torch.tensor(1.0).float().cuda() - img_masks) + \
+    depth_maps_2_calculate = torch.tensor(1.0e30, dtype=torch.float32, device=device) * (torch.tensor(1.0, dtype=torch.float32, device=device) - img_masks) + \
                              img_masks * depth_maps_2_calculate
 
     # This is the source coordinate in coordinate system 2 but ordered in coordinate system 1 in order to warp image 2 to coordinate system 1
@@ -440,10 +445,11 @@ def _flow_from_depth(depth_maps_1, img_masks, translation_vectors, rotation_matr
     depth_maps_1 = depth_maps_1.permute(0, 2, 3, 1)
     img_masks = img_masks.permute(0, 2, 3, 1)
     num_batch, height, width, channels = depth_maps_1.shape
+    device = get_device(depth_maps_1)
 
     y_grid, x_grid = torch.meshgrid(
-        [torch.arange(start=0, end=height, dtype=torch.float32).cuda(),
-         torch.arange(start=0, end=width, dtype=torch.float32).cuda()])
+        [torch.arange(start=0, end=height, dtype=torch.float32, device=device),
+         torch.arange(start=0, end=width, dtype=torch.float32, device=device)])
 
     x_grid = x_grid.reshape(1, height, width, 1)
     y_grid = y_grid.reshape(1, height, width, 1)
@@ -459,14 +465,15 @@ def _flow_from_depth(depth_maps_1, img_masks, translation_vectors, rotation_matr
 class DepthWarpingLayer(torch.nn.Module):
     def __init__(self, epsilon=1.0e-8):
         super(DepthWarpingLayer, self).__init__()
-        self.zero = torch.tensor(0.0).float().cuda()
-        self.epsilon = torch.tensor(epsilon).float().cuda()
+        self.epsilon_value = epsilon
 
     def forward(self, x):
         depth_maps_1, depth_maps_2, img_masks, translation_vectors, rotation_matrices, intrinsic_matrices = x
+        device = get_device(depth_maps_1)
+        epsilon = torch.tensor(self.epsilon_value, device=device, dtype=torch.float32)
         warped_depth_maps, intersect_masks = _depth_warping(depth_maps_1, depth_maps_2, img_masks,
                                                             translation_vectors,
-                                                            rotation_matrices, intrinsic_matrices, self.epsilon)
+                                                            rotation_matrices, intrinsic_matrices, epsilon)
         return warped_depth_maps, intersect_masks
 
 
@@ -483,18 +490,19 @@ def _depth_warping(depth_maps_1, depth_maps_2, img_masks, translation_vectors, r
     img_masks = img_masks.permute(0, 2, 3, 1)
 
     num_batch, height, width, channels = depth_maps_1.shape
+    device = get_device(depth_maps_1)
 
     y_grid, x_grid = torch.meshgrid(
-        [torch.arange(start=0, end=height, dtype=torch.float32).cuda(),
-         torch.arange(start=0, end=width, dtype=torch.float32).cuda()])
+        [torch.arange(start=0, end=height, dtype=torch.float32, device=device),
+         torch.arange(start=0, end=width, dtype=torch.float32, device=device)])
 
     x_grid = x_grid.reshape(1, height, width, 1)
     y_grid = y_grid.reshape(1, height, width, 1)
 
-    ones_grid = torch.ones((1, height, width, 1), dtype=torch.float32).cuda()
+    ones_grid = torch.ones((1, height, width, 1), dtype=torch.float32, device=device)
 
     # intrinsic_matrix_inverse = intrinsic_matrix.inverse()
-    eye = torch.eye(3).float().cuda().reshape(1, 3, 3).expand(intrinsic_matrices.shape[0], -1, -1)
+    eye = torch.eye(3, dtype=torch.float32, device=device).reshape(1, 3, 3).expand(intrinsic_matrices.shape[0], -1, -1)
     intrinsic_matrices_inverse, _ = torch.solve(eye, intrinsic_matrices)
     rotation_matrices_inverse = rotation_matrices.transpose(1, 2)
 
@@ -553,7 +561,7 @@ def _depth_warping(depth_maps_1, depth_maps_2, img_masks, translation_vectors, r
                                                                                                     width)
     # binarize
     intersect_masks = torch.where(_bilinear_interpolate(img_masks, u_2_flat, v_2_flat) * img_masks >= 0.9,
-                                  torch.tensor(1.0).float().cuda(),
-                                  torch.tensor(0.0).float().cuda()).reshape(num_batch, 1, height, width)
+                                  torch.tensor(1.0, dtype=torch.float32, device=device),
+                                  torch.tensor(0.0, dtype=torch.float32, device=device)).reshape(num_batch, 1, height, width)
 
     return [warped_depth_maps_2, intersect_masks]
