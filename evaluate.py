@@ -131,6 +131,18 @@ if __name__ == '__main__':
 
         test_loader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False,
                                                   num_workers=0)
+
+        # Detect device (CUDA, MPS, or CPU)
+        if torch.cuda.is_available():
+            device = torch.device('cuda')
+            print("Evaluating on CUDA (GPU)")
+        elif torch.backends.mps.is_available():
+            device = torch.device('mps')
+            print("Evaluating on MPS (Apple Silicon GPU)")
+        else:
+            device = torch.device('cpu')
+            print("WARNING: Evaluating on CPU - this will be slow!")
+
         depth_estimation_model = models.FCDenseNet57(n_classes=1)
         # Initialize the depth estimation network with Kaiming He initialization
         utils.init_net(depth_estimation_model, type="kaiming", mode="fan_in", activation_mode="relu",
@@ -139,7 +151,11 @@ if __name__ == '__main__':
         depth_estimation_model = torch.nn.DataParallel(depth_estimation_model)
         # Summary network architecture
         if display_architecture:
-            torchsummary.summary(depth_estimation_model, input_size=(3, height, width))
+            try:
+                torchsummary.summary(depth_estimation_model, input_size=(3, height, width), device=str(device))
+            except Exception as e:
+                print(f"Warning: Could not display architecture summary: {e}")
+                print("Skipping architecture summary...")
 
         # Load trained model
         if trained_model_path.exists():
@@ -169,20 +185,20 @@ if __name__ == '__main__':
                     sparse_flows_1, sparse_flows_2, sparse_flow_masks_1, sparse_flow_masks_2, boundaries,
                     rotations_1_wrt_2, rotations_2_wrt_1, translations_1_wrt_2, translations_2_wrt_1, intrinsics,
                     folders) in enumerate(test_loader):
-                colors_1 = colors_1.cuda()
-                colors_2 = colors_2.cuda()
-                sparse_depths_1 = sparse_depths_1.cuda()
-                sparse_depths_2 = sparse_depths_2.cuda()
-                sparse_depth_masks_1 = sparse_depth_masks_1.cuda()
-                sparse_depth_masks_2 = sparse_depth_masks_2.cuda()
-                sparse_flows_1 = sparse_flows_1.cuda()
-                sparse_flows_2 = sparse_flows_2.cuda()
-                boundaries = boundaries.cuda()
-                rotations_1_wrt_2 = rotations_1_wrt_2.cuda()
-                rotations_2_wrt_1 = rotations_2_wrt_1.cuda()
-                translations_1_wrt_2 = translations_1_wrt_2.cuda()
-                translations_2_wrt_1 = translations_2_wrt_1.cuda()
-                intrinsics = intrinsics.cuda()
+                colors_1 = colors_1.to(device)
+                colors_2 = colors_2.to(device)
+                sparse_depths_1 = sparse_depths_1.to(device)
+                sparse_depths_2 = sparse_depths_2.to(device)
+                sparse_depth_masks_1 = sparse_depth_masks_1.to(device)
+                sparse_depth_masks_2 = sparse_depth_masks_2.to(device)
+                sparse_flows_1 = sparse_flows_1.to(device)
+                sparse_flows_2 = sparse_flows_2.to(device)
+                boundaries = boundaries.to(device)
+                rotations_1_wrt_2 = rotations_1_wrt_2.to(device)
+                rotations_2_wrt_1 = rotations_2_wrt_1.to(device)
+                translations_1_wrt_2 = translations_1_wrt_2.to(device)
+                translations_2_wrt_1 = translations_2_wrt_1.to(device)
+                intrinsics = intrinsics.to(device)
 
                 tq.update(batch_size)
 
@@ -291,6 +307,18 @@ if __name__ == '__main__':
 
         test_loader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=1, shuffle=False,
                                                   num_workers=0)
+
+        # Detect device (CUDA, MPS, or CPU)
+        if torch.cuda.is_available():
+            device = torch.device('cuda')
+            print("Evaluating on CUDA (GPU)")
+        elif torch.backends.mps.is_available():
+            device = torch.device('mps')
+            print("Evaluating on MPS (Apple Silicon GPU)")
+        else:
+            device = torch.device('cpu')
+            print("WARNING: Evaluating on CPU - this will be slow!")
+
         depth_estimation_model = models.FCDenseNet57(n_classes=1)
         # Initialize the depth estimation network with Kaiming He initialization
         utils.init_net(depth_estimation_model, type="kaiming", mode="fan_in", activation_mode="relu",
@@ -299,7 +327,11 @@ if __name__ == '__main__':
         depth_estimation_model = torch.nn.DataParallel(depth_estimation_model)
         # Summary network architecture
         if display_architecture:
-            torchsummary.summary(depth_estimation_model, input_size=(3, height, width))
+            try:
+                torchsummary.summary(depth_estimation_model, input_size=(3, height, width), device=str(device))
+            except Exception as e:
+                print(f"Warning: Could not display architecture summary: {e}")
+                print("Skipping architecture summary...")
 
         # Load trained model
         if trained_model_path.exists():
@@ -320,8 +352,8 @@ if __name__ == '__main__':
             # Update progress bar
             tq = tqdm.tqdm(total=len(test_loader) * batch_size)
             for batch, (colors_1, boundaries, intrinsics, names) in enumerate(test_loader):
-                colors_1 = colors_1.cuda()
-                boundaries = boundaries.cuda()
+                colors_1 = colors_1.to(device)
+                boundaries = boundaries.to(device)
 
                 colors_1 = boundaries * colors_1
                 predicted_depth_maps_1 = depth_estimation_model(colors_1)
