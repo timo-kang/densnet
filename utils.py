@@ -21,9 +21,9 @@ import shutil
 from pathlib import Path
 
 import matplotlib
-
-matplotlib.use('agg', warn=False, force=True)
 from matplotlib import pyplot as plt
+
+matplotlib.use('agg', force=True)
 
 
 def overlapping_visible_view_indexes_per_point(visible_view_indexes_per_point, visible_interval):
@@ -225,7 +225,7 @@ def read_view_indexes_per_point(prefix_seq, visible_view_indexes, point_cloud_co
 
 def read_pose_data(prefix_seq):
     stream = open(str(prefix_seq / "motion.yaml"), 'r')
-    doc = yaml.load(stream)
+    doc = yaml.load(stream, Loader=yaml.FullLoader)
     keys, values = doc.items()
     poses = values[1]
     return poses
@@ -617,8 +617,18 @@ def init_fn(worker_id):
 
 
 def init_net(net, type="kaiming", mode="fan_in", activation_mode="relu", distribution="normal"):
-    assert (torch.cuda.is_available())
-    net = net.cuda()
+    # Support CUDA, MPS (Apple Silicon), or CPU
+    if torch.cuda.is_available():
+        device = torch.device('cuda')
+        print("Using CUDA (GPU)")
+    elif torch.backends.mps.is_available():
+        device = torch.device('mps')
+        print("Using MPS (Apple Silicon GPU)")
+    else:
+        device = torch.device('cpu')
+        print("WARNING: Using CPU - training will be VERY slow!")
+
+    net = net.to(device)
     if type == "glorot":
         glorot_weight_zero_bias(net, distribution=distribution)
     else:

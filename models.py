@@ -14,6 +14,11 @@ from torch import nn
 from torch.nn import functional as F
 
 
+def get_device(tensor):
+    """Helper function to get device from tensor (supports CUDA, MPS, CPU)"""
+    return tensor.device
+
+
 # Removed dropout and changed the transition up layers in the original implementation
 # to mitigate the grid patterns of the network output
 class DenseLayer(nn.Sequential):

@@ -132,12 +132,12 @@ if __name__ == '__main__':
             albu.Blur(p=0.5),
             albu.MedianBlur(p=0.5),
             albu.MotionBlur(p=0.5),
-            albu.JpegCompression(quality_lower=20, quality_upper=100, p=0.5)
+            albu.ImageCompression(quality_range=(20,100), p=0.5)
         ]),
         # Noise augmentation
         albu.OneOf([
-            albu.GaussNoise(var_limit=(10, 30), p=0.5),
-            albu.IAAAdditiveGaussianNoise(loc=0, scale=(0.005 * 255, 0.02 * 255), p=0.5)
+            albu.GaussNoise(p=0.5),
+            # albu.IAAAdditiveGaussianNoise(loc=0, scale=(0.005 * 255, 0.02 * 255), p=0.5)
         ]),
     ], p=1.)
 
@@ -146,7 +146,7 @@ if __name__ == '__main__':
         currentDT.day,
         currentDT.hour,
         currentDT.minute,
-        "_".join(testing_patient_id))
+        "_".join(str(testing_patient_id)))
     if not log_root.exists():
         log_root.mkdir()
     writer = SummaryWriter(logdir=str(log_root))

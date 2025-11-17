@@ -16,7 +16,7 @@ import pickle
 from multiprocessing import Process, Queue
 
 from torch.utils.data import Dataset
-from albumentations.pytorch.functional import img_to_tensor
+from torchvision.transforms.functional import to_tensor as img_to_tensor
 import albumentations as albu
 
 import utils
