@@ -70,7 +70,7 @@ class SparseMaskedL1Loss(nn.Module):
     def forward(self, x):
         flows, flows_from_depth, sparse_masks = x
         loss = torch.sum(sparse_masks * torch.abs(flows - flows_from_depth),
-                         dim=(1, 2, 3)) / (self.epsilon + torch.sum(sparse_masks, dim=(1, 2, 3)))
+                         dim=(1, 2, 3)) / (self.epsilon_value + torch.sum(sparse_masks, dim=(1, 2, 3)))
         return torch.mean(loss)
 
 
@@ -83,7 +83,7 @@ class SparseMaskedL1LossDisplay(nn.Module):
         flows, flows_from_depth, sparse_masks = x
         loss = torch.sum(sparse_masks * torch.abs(flows - flows_from_depth),
                          dim=(1, 2, 3), keepdim=False) / (
-                       self.epsilon + torch.sum(sparse_masks, dim=(1, 2, 3), keepdim=False))
+                       self.epsilon_value + torch.sum(sparse_masks, dim=(1, 2, 3), keepdim=False))
         return loss
 
 
@@ -95,7 +95,7 @@ class MaskedL1Loss(nn.Module):
     def forward(self, x):
         images, twice_warped_images, intersect_masks = x
         loss = torch.sum(intersect_masks * torch.abs(images - twice_warped_images), dim=(1, 2, 3)) / (
-                self.epsilon + torch.sum(intersect_masks, dim=(1, 2, 3)))
+                self.epsilon_value + torch.sum(intersect_masks, dim=(1, 2, 3)))
         return torch.mean(loss)
 
 
