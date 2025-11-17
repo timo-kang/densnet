@@ -458,7 +458,8 @@ def _flow_from_depth(depth_maps_1, img_masks, translation_vectors, rotation_matr
                                          intrinsic_matrices)
 
     return torch.cat(
-        [(u_2 - x_grid) / torch.tensor(width).float().cuda(), (v_2 - y_grid) / torch.tensor(height).float().cuda()],
+        [(u_2 - x_grid) / torch.tensor(width, device=device, dtype=torch.float32),
+         (v_2 - y_grid) / torch.tensor(height, device=device, dtype=torch.float32)],
         dim=-1).permute(0, 3, 1, 2)
 
 
