@@ -136,7 +136,7 @@ class NormalizedDistanceLoss(nn.Module):
                 [torch.arange(start=0, end=self.height, dtype=torch.float32, device=device),
                  torch.arange(start=0, end=self.width, dtype=torch.float32, device=device)])
             self.y_grid = y_grid.reshape(1, 1, self.height, self.width)
-            self.x_grid = x_grid.reshape(1, 1, self.width, self.width)
+            self.x_grid = x_grid.reshape(1, 1, self.height, self.width)
 
         fx = intrinsics[:, 0, 0].reshape(-1, 1, 1, 1)
         fy = intrinsics[:, 1, 1].reshape(-1, 1, 1, 1)

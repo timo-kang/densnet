@@ -392,6 +392,12 @@ if __name__ == '__main__':
 
         tq = tqdm.tqdm(total=len(validation_loader) * batch_size, dynamic_ncols=True, ncols=40)
         tq.set_description('Validation Epoch {}'.format(epoch))
+
+        # Initialize validation metrics
+        mean_loss = 0.0
+        mean_depth_consistency_loss = 0.0
+        mean_sparse_flow_loss = 0.0
+
         with torch.no_grad():
             for batch, (
                     colors_1, colors_2, sparse_depths_1, sparse_depths_2, sparse_depth_masks_1,
@@ -492,8 +498,7 @@ if __name__ == '__main__':
                                                         colors_2_display, pred_depths_2_display, sparse_flows_2_display,
                                                         dense_flows_2_display])
 
-                # TensorboardX
-                writer.add_scalars('Validation', {'overall': mean_loss,
+            writer.add_scalars('Validation', {'overall': mean_loss,
                                                   'depth_consistency': mean_depth_consistency_loss,
                                                   'sparse_flow': mean_sparse_flow_loss}, epoch)
 
