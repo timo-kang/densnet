@@ -45,6 +45,7 @@ colmap feature_extractor \
     --image_path "$INPUT_IMAGES" \
     --ImageReader.single_camera 1 \
     --ImageReader.camera_model OPENCV \
+    --SiftExtraction.use_gpu 0 \
     --SiftExtraction.max_image_size 3200 \
     --SiftExtraction.max_num_features 8192
 
@@ -63,6 +64,7 @@ echo "Step 2/4: Matching features across frames..."
 
 colmap sequential_matcher \
     --database_path "$WORKSPACE/database.db" \
+    --SiftMatching.use_gpu 0 \
     --SiftMatching.guided_matching 1 \
     --SequentialMatching.overlap 10 \
     --SequentialMatching.loop_detection 1
