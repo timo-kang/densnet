@@ -141,7 +141,10 @@ def convert_colmap_to_training_format(sparse_dir, output_dir, copy_images=True):
                 shutil.copy2(src_image, dst_image)
             else:
                 if not dst_image.exists():
-                    os.symlink(src_image, dst_image)
+                    # Use absolute paths for symlinks
+                    os.symlink(src_image.absolute(), dst_image)
+        else:
+            print(f"Warning: Source image not found: {img_name}")
 
         # Write camera intrinsics
         cam = cameras[camera_id]
