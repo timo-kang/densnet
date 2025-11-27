@@ -67,7 +67,7 @@ colmap sequential_matcher \
     --SiftMatching.use_gpu 0 \
     --SiftMatching.guided_matching 1 \
     --SequentialMatching.overlap 10 \
-    --SequentialMatching.loop_detection 1
+    --SequentialMatching.loop_detection 0
 
 if [ $? -ne 0 ]; then
     echo "ERROR: Feature matching failed!"

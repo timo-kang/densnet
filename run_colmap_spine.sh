@@ -5,17 +5,20 @@
 # ============================================
 # CONFIGURATION - UPDATE THESE PATHS
 # ============================================
-
+QT_QPA_PLATFORM=offscreen
 # Where your 640×360 spine endoscopy frames are stored
-INPUT_IMAGES="/path/to/your/spine/frames"
+INPUT_IMAGES="/home/test1/workspace/test-data"
 
 # Where to save COLMAP outputs
-WORKSPACE="/path/to/colmap/workspace"
+WORKSPACE="/home/test1/workspace/test-colmap-output"
 
 # Create workspace directories
 mkdir -p "$WORKSPACE"
 mkdir -p "$WORKSPACE/sparse"
 mkdir -p "$WORKSPACE/dense"
+
+echo $WORKSPACE
+echo $INPUT_IMAGES
 
 # ============================================
 # STEP 1: Feature Extraction
