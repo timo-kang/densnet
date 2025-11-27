@@ -71,6 +71,8 @@ if __name__ == '__main__':
     parser.add_argument('--architecture_summary', action='store_true', help='display the network architecture')
     parser.add_argument('--trained_model_path', type=str, default=None,
                         help='path to the trained student model')
+    parser.add_argument('--device', type=str, default='auto', choices=['auto', 'cuda', 'mps', 'cpu'],
+                        help='device to use: auto (default), cuda, mps, or cpu')
 
     args = parser.parse_args()
 

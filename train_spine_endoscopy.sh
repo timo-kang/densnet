@@ -11,26 +11,25 @@ RESULT_ROOT="/home/test1/workspace/training_results"
 # ============================================
 # DATASET SPLIT
 # ============================================
-# Assuming you have bags organized as bag_0, bag_1, ..., bag_N
-# Adjust these ranges based on your actual number of bags
+# You have 51 bags total (bag_0 to bag_50)
+# Split: 80% training, 10% validation, 10% testing
 
-# Example: If you have 225 sequences organized into bags (10 seq/bag = ~23 bags)
-# Training: bags 0-17 (80%)
-# Validation: bags 18-20 (10%)
-# Testing: bags 21-22 (10%)
-
-TRAINING_IDS="0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17"
-VALIDATION_IDS="18 19 20"
-TESTING_IDS="21 22"
+# Training: bags 0-39 (40 bags, ~78%)
+TRAINING_IDS="0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39"
+# Validation: bags 40-44 (5 bags, ~10%)
+VALIDATION_IDS="40 41 42 43 44"
+# Testing: bags 45-50 (6 bags, ~12%)
+TESTING_IDS="45 46 47 48 49 50"
 
 # ============================================
 # TRAINING PARAMETERS
 # ============================================
 INPUT_SIZE="320 192"  # Width Height (must be divisible by 64)
-ADJACENT_RANGE="1 2 3"  # Frame intervals for pairs
+ADJACENT_RANGE="1 5"  # Frame interval range [min, max] for pairs
 ID_RANGE="0 10000"  # Frame ID range (adjust based on your data)
 BATCH_SIZE=8
 NUM_WORKERS=4
+NUM_PRE_WORKERS=4
 NUM_EPOCHS=50
 
 # Learning rates
@@ -64,6 +63,7 @@ python train.py \
     --id_range $ID_RANGE \
     --batch_size $BATCH_SIZE \
     --num_workers $NUM_WORKERS \
+    --num_pre_workers $NUM_PRE_WORKERS \
     --number_epoch $NUM_EPOCHS \
     --num_iter $NUM_ITER \
     --max_lr $MAX_LR \
