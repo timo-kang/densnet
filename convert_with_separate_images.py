@@ -8,6 +8,7 @@ import os
 import sys
 import yaml
 import numpy as np
+import cv2
 from pathlib import Path
 import shutil
 from tqdm import tqdm
@@ -135,9 +136,15 @@ def convert_sequence(sparse_dir, output_dir, image_source_dir):
         # Find and copy image
         src = find_image(image_source_path, img_name)
         if src:
-            dst = img_dir / f'{idx:010d}.png'
-            shutil.copy2(src, dst)
-            found += 1
+            dst = img_dir / f'{idx:08d}.jpg'
+            # Read and re-save as jpg if source is png
+            img = cv2.imread(str(src))
+            if img is not None:
+                cv2.imwrite(str(dst), img)
+                found += 1
+            else:
+                missing.append(img_name)
+                continue
         else:
             missing.append(img_name)
             continue
