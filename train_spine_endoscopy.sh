@@ -63,7 +63,7 @@ python train.py \
     --id_range $ID_RANGE \
     --batch_size $BATCH_SIZE \
     --num_workers $NUM_WORKERS \
-    --num_pre_workers $NUM_PRE_WORKERS \
+    --num_pre_workers $NUM_WORKERS \
     --number_epoch $NUM_EPOCHS \
     --num_iter $NUM_ITER \
     --max_lr $MAX_LR \
