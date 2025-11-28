@@ -206,15 +206,23 @@ def convert_sequence(sparse_dir, output_dir, image_source_dir):
     with open(output_path / 'motion.yaml', 'w') as f:
         yaml.dump(motion_yaml, f, default_flow_style=False)
 
-    # Save structure
+    # Save structure (only xyz, no colors)
     with open(output_path / 'structure.ply', 'w') as f:
         f.write('ply\nformat ascii 1.0\n')
+        f.write('comment PCL generated\n')
         f.write(f'element vertex {len(points3D)}\n')
         f.write('property float x\nproperty float y\nproperty float z\n')
-        f.write('property uchar red\nproperty uchar green\nproperty uchar blue\n')
+        f.write('element camera 1\n')
+        f.write('property float view_px\nproperty float view_py\nproperty float view_pz\n')
+        f.write('property float x_axisx\nproperty float x_axisy\nproperty float x_axisz\n')
+        f.write('property float y_axisx\nproperty float y_axisy\nproperty float y_axisz\n')
+        f.write('property float z_axisx\nproperty float z_axisy\nproperty float z_axisz\n')
         f.write('end_header\n')
+        # Write points (xyz only)
         for pt in points3D:
-            f.write(f'{pt[0]:.6f} {pt[1]:.6f} {pt[2]:.6f} {int(pt[3])} {int(pt[4])} {int(pt[5])}\n')
+            f.write(f'{pt[0]:.6f} {pt[1]:.6f} {pt[2]:.6f}\n')
+        # Write dummy camera (use first pose)
+        f.write('0.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0\n')
 
     return found, len(points3D)
 
