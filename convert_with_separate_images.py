@@ -65,6 +65,35 @@ def quaternion_to_rotation_matrix(q):
         [2*qx*qz - 2*qy*qw, 2*qy*qz + 2*qx*qw, 1 - 2*qx**2 - 2*qy**2]
     ])
 
+def rotation_matrix_to_quaternion(R):
+    """Convert 3x3 rotation matrix to quaternion [qw, qx, qy, qz]"""
+    trace = np.trace(R)
+    if trace > 0:
+        s = 0.5 / np.sqrt(trace + 1.0)
+        qw = 0.25 / s
+        qx = (R[2,1] - R[1,2]) * s
+        qy = (R[0,2] - R[2,0]) * s
+        qz = (R[1,0] - R[0,1]) * s
+    elif R[0,0] > R[1,1] and R[0,0] > R[2,2]:
+        s = 2.0 * np.sqrt(1.0 + R[0,0] - R[1,1] - R[2,2])
+        qw = (R[2,1] - R[1,2]) / s
+        qx = 0.25 * s
+        qy = (R[0,1] + R[1,0]) / s
+        qz = (R[0,2] + R[2,0]) / s
+    elif R[1,1] > R[2,2]:
+        s = 2.0 * np.sqrt(1.0 + R[1,1] - R[0,0] - R[2,2])
+        qw = (R[0,2] - R[2,0]) / s
+        qx = (R[0,1] + R[1,0]) / s
+        qy = 0.25 * s
+        qz = (R[1,2] + R[2,1]) / s
+    else:
+        s = 2.0 * np.sqrt(1.0 + R[2,2] - R[0,0] - R[1,1])
+        qw = (R[1,0] - R[0,1]) / s
+        qx = (R[0,2] + R[2,0]) / s
+        qy = (R[1,2] + R[2,1]) / s
+        qz = 0.25 * s
+    return [qw, qx, qy, qz]
+
 def find_image(image_dir, image_name):
     """Search for image in directory tree"""
     direct = image_dir / image_name
@@ -93,7 +122,7 @@ def convert_sequence(sparse_dir, output_dir, image_source_dir):
     img_dir = output_path / 'image_0'
     img_dir.mkdir(exist_ok=True)
 
-    motion_data = {}
+    poses_list = []  # ROS-style pose messages
     intrinsics_list = []  # Collect intrinsics for single file
     found = 0
     missing = []
@@ -118,16 +147,32 @@ def convert_sequence(sparse_dir, output_dir, image_source_dir):
         fx, fy, cx, cy = cam['params'][:4]
         intrinsics_list.extend([fx, fy, cx, cy])  # Add to list for single file
 
-        # Compute pose
+        # Compute pose (convert to camera-to-world)
         R_w2c = quaternion_to_rotation_matrix(img_data['quat'])
         t_w2c = np.array(img_data['trans']).reshape(3, 1)
         R_c2w = R_w2c.T
         t_c2w = -R_c2w @ t_w2c
 
-        T = np.eye(4)
-        T[:3, :3] = R_c2w
-        T[:3, 3] = t_c2w.flatten()
-        motion_data[idx] = T.tolist()
+        # Convert back to quaternion for ROS format
+        quat_c2w = rotation_matrix_to_quaternion(R_c2w)
+
+        # Create ROS-style pose message
+        pose = {
+            f'poses[{idx}]': {
+                'position': {
+                    'x': float(t_c2w[0]),
+                    'y': float(t_c2w[1]),
+                    'z': float(t_c2w[2])
+                },
+                'orientation': {
+                    'x': float(quat_c2w[1]),  # qx
+                    'y': float(quat_c2w[2]),  # qy
+                    'z': float(quat_c2w[3]),  # qz
+                    'w': float(quat_c2w[0])   # qw
+                }
+            }
+        }
+        poses_list.append(pose)
 
     if found == 0:
         raise ValueError(f"No images found")
@@ -137,9 +182,22 @@ def convert_sequence(sparse_dir, output_dir, image_source_dir):
         for param in intrinsics_list:
             f.write(f'{param:.6f}\n')
 
-    # Save motion
+    # Save motion in ROS format
+    motion_yaml = {
+        'header': {
+            'seq': 0,
+            'stamp': 0.0,
+            'frame_id': ''
+        },
+        'poses[]': {}
+    }
+
+    # Merge all pose dictionaries
+    for pose_dict in poses_list:
+        motion_yaml['poses[]'].update(pose_dict)
+
     with open(output_path / 'motion.yaml', 'w') as f:
-        yaml.dump({'motion': motion_data}, f)
+        yaml.dump(motion_yaml, f, default_flow_style=False)
 
     # Save structure
     with open(output_path / 'structure.ply', 'w') as f:
