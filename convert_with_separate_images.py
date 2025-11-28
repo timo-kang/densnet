@@ -120,8 +120,8 @@ def convert_sequence(sparse_dir, output_dir, image_source_dir):
     points3D = read_colmap_points3D(sparse_path / 'points3D.txt')
 
     # Create output structure
-    img_dir = output_path / 'image_0'
-    img_dir.mkdir(exist_ok=True)
+    # Images go directly in sequence directory (not in image_0 subdirectory)
+    output_path.mkdir(parents=True, exist_ok=True)
 
     poses_list = []  # ROS-style pose messages
     intrinsics_list = []  # Collect intrinsics for single file
@@ -136,7 +136,7 @@ def convert_sequence(sparse_dir, output_dir, image_source_dir):
         # Find and copy image
         src = find_image(image_source_path, img_name)
         if src:
-            dst = img_dir / f'{idx:08d}.jpg'
+            dst = output_path / f'{idx:08d}.jpg'
             # Read and re-save as jpg if source is png
             img = cv2.imread(str(src))
             if img is not None:

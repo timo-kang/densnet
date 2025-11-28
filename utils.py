@@ -51,13 +51,13 @@ def get_color_file_names_by_bag(root, training_patient_id, validation_patient_id
     for id in training_patient_id:
         # Support both _start* (original) and sequence_* (COLMAP converted) patterns
         training_image_list += list(root.glob('*' + str(id) + '/_start*/0*.jpg'))
-        training_image_list += list(root.glob('bag_' + str(id) + '/sequence_*/image_0/*.png'))
+        training_image_list += list(root.glob('bag_' + str(id) + '/sequence_*/0*.jpg'))
     for id in testing_patient_id:
         testing_image_list += list(root.glob('*' + str(id) + '/_start*/0*.jpg'))
-        testing_image_list += list(root.glob('bag_' + str(id) + '/sequence_*/image_0/*.png'))
+        testing_image_list += list(root.glob('bag_' + str(id) + '/sequence_*/0*.jpg'))
     for id in validation_patient_id:
         validation_image_list += list(root.glob('*' + str(id) + '/_start*/0*.jpg'))
-        validation_image_list += list(root.glob('bag_' + str(id) + '/sequence_*/image_0/*.png'))
+        validation_image_list += list(root.glob('bag_' + str(id) + '/sequence_*/0*.jpg'))
 
     training_image_list.sort()
     testing_image_list.sort()

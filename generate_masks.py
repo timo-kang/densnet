@@ -14,9 +14,8 @@ def create_mask_for_sequence(seq_dir):
     """Create mask and selected_indexes based on available images"""
     seq_path = Path(seq_dir)
 
-    # Find all images
-    image_dir = seq_path / 'image_0'
-    images = sorted(list(image_dir.glob('*.png')) + list(image_dir.glob('*.jpg')))
+    # Find all images (directly in sequence directory, not in image_0 subdirectory)
+    images = sorted(list(seq_path.glob('*.png')) + list(seq_path.glob('*.jpg')))
 
     if not images:
         return False
