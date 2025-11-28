@@ -47,6 +47,29 @@ def create_mask_for_sequence(seq_dir):
         for i in range(len(images)):
             f.write(f'{i}\n')
 
+    # Create view_indexes_per_point file
+    # Format: -1 marks new point, then list view indices where it's visible
+    # For COLMAP with few images, assume all points visible in all views
+    view_indexes_per_point_path = seq_path / 'view_indexes_per_point'
+
+    # Count points from structure.ply
+    ply_path = seq_path / 'structure.ply'
+    num_points = 0
+    if ply_path.exists():
+        with open(ply_path, 'r') as f:
+            for line in f:
+                if line.startswith('element vertex'):
+                    num_points = int(line.split()[2])
+                    break
+
+    # Write view_indexes_per_point
+    with open(view_indexes_per_point_path, 'w') as f:
+        for point_idx in range(num_points):
+            f.write('-1\n')  # Start new point
+            # Assume all points visible in all views (simple approximation)
+            for view_idx in range(len(images)):
+                f.write(f'{view_idx}\n')
+
     return True
 
 def main():
