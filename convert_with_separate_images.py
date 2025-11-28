@@ -91,11 +91,10 @@ def convert_sequence(sparse_dir, output_dir, image_source_dir):
 
     # Create output structure
     img_dir = output_path / 'image_0'
-    intr_dir = output_path / 'camera_intrinsics_per_view'
     img_dir.mkdir(exist_ok=True)
-    intr_dir.mkdir(exist_ok=True)
 
     motion_data = {}
+    intrinsics_list = []  # Collect intrinsics for single file
     found = 0
     missing = []
 
@@ -114,11 +113,10 @@ def convert_sequence(sparse_dir, output_dir, image_source_dir):
             missing.append(img_name)
             continue
 
-        # Write intrinsics
+        # Collect intrinsics
         cam = cameras[img_data['camera_id']]
         fx, fy, cx, cy = cam['params'][:4]
-        K = np.array([[fx, 0, cx], [0, fy, cy], [0, 0, 1]])
-        np.savetxt(intr_dir / f'{idx:010d}.txt', K, fmt='%.6f')
+        intrinsics_list.extend([fx, fy, cx, cy])  # Add to list for single file
 
         # Compute pose
         R_w2c = quaternion_to_rotation_matrix(img_data['quat'])
@@ -133,6 +131,11 @@ def convert_sequence(sparse_dir, output_dir, image_source_dir):
 
     if found == 0:
         raise ValueError(f"No images found")
+
+    # Write single camera_intrinsics_per_view file (one parameter per line)
+    with open(output_path / 'camera_intrinsics_per_view', 'w') as f:
+        for param in intrinsics_list:
+            f.write(f'{param:.6f}\n')
 
     # Save motion
     with open(output_path / 'motion.yaml', 'w') as f:
