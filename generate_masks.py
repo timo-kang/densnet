@@ -41,6 +41,12 @@ def create_mask_for_sequence(seq_dir):
         for i in range(len(images)):
             f.write(f'{i}\n')
 
+    # Create visible_view_indexes file (all views have visible points for COLMAP data)
+    visible_view_indexes_path = seq_path / 'visible_view_indexes'
+    with open(visible_view_indexes_path, 'w') as f:
+        for i in range(len(images)):
+            f.write(f'{i}\n')
+
     return True
 
 def main():
