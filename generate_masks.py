@@ -11,10 +11,10 @@ import sys
 from tqdm import tqdm
 
 def create_mask_for_sequence(seq_dir):
-    """Create mask based on first image dimensions"""
+    """Create mask and selected_indexes based on available images"""
     seq_path = Path(seq_dir)
 
-    # Find first image to get dimensions
+    # Find all images
     image_dir = seq_path / 'image_0'
     images = sorted(list(image_dir.glob('*.png')) + list(image_dir.glob('*.jpg')))
 
@@ -31,14 +31,15 @@ def create_mask_for_sequence(seq_dir):
     # Create white mask (all pixels valid)
     mask = np.ones((height, width), dtype=np.uint8) * 255
 
-    # Optional: Create circular mask for endoscopy (uncomment if needed)
-    # center_x, center_y = width // 2, height // 2
-    # radius = min(width, height) // 2 - 10
-    # cv2.circle(mask, (center_x, center_y), radius, 255, -1)
-
     # Save mask
     mask_path = seq_path / 'undistorted_mask.bmp'
     cv2.imwrite(str(mask_path), mask)
+
+    # Create selected_indexes file (sequential indices)
+    selected_indexes_path = seq_path / 'selected_indexes'
+    with open(selected_indexes_path, 'w') as f:
+        for i in range(len(images)):
+            f.write(f'{i}\n')
 
     return True
 
