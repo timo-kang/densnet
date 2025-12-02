@@ -102,7 +102,9 @@ for i in "${!DIRS[@]}"; do
         --ImageReader.camera_model OPENCV \
         --SiftExtraction.use_gpu 0 \
         --SiftExtraction.max_image_size 3200 \
-        --SiftExtraction.max_num_features 8192 \
+        --SiftExtraction.max_num_features 16384 \
+        --SiftExtraction.peak_threshold 0.004 \
+        --SiftExtraction.edge_threshold 5 \
         >> "$LOG_FILE" 2>&1
 
     if [ $? -ne 0 ]; then
@@ -119,7 +121,11 @@ for i in "${!DIRS[@]}"; do
         --database_path "$OUTPUT_DIR/database.db" \
         --SiftMatching.use_gpu 0 \
         --SiftMatching.guided_matching 1 \
-        --SequentialMatching.overlap 10 \
+        --SiftMatching.max_ratio 0.9 \
+        --SiftMatching.max_distance 0.9 \
+        --SiftMatching.max_error 6.0 \
+        --SiftMatching.min_inlier_ratio 0.15 \
+        --SequentialMatching.overlap 20 \
         --SequentialMatching.loop_detection 0 \
         >> "$LOG_FILE" 2>&1
 
@@ -138,6 +144,11 @@ for i in "${!DIRS[@]}"; do
         --image_path "$INPUT_DIR" \
         --output_path "$OUTPUT_DIR/sparse" \
         --Mapper.ba_global_function_tolerance 0.000001 \
+        --Mapper.init_min_tri_angle 2.0 \
+        --Mapper.abs_pose_min_num_inliers 10 \
+        --Mapper.abs_pose_min_inlier_ratio 0.15 \
+        --Mapper.filter_min_tri_angle 1.5 \
+        --Mapper.min_num_matches 10 \
         >> "$LOG_FILE" 2>&1
 
     if [ $? -ne 0 ] || [ ! -d "$OUTPUT_DIR/sparse/0" ]; then
