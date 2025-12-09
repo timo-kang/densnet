@@ -10,20 +10,20 @@ import sys
 from pathlib import Path
 from tqdm import tqdm
 
-def extract_frames_from_video(video_path, output_dir, num_frames=10, start_sec=10, duration_sec=60):
+def extract_frames_from_video(video_path, output_dir, num_frames=8, start_sec=10, duration_sec=80):
     """
     Extract frames from video at regular intervals
 
     IMPORTANT: Use fewer frames with larger spacing for better COLMAP reconstruction!
-    - 10 frames over 60 seconds = 6 second intervals
+    - 8 frames over 80 seconds = 10 second intervals
     - Larger temporal spacing = more visual change = better feature matching
 
     Args:
         video_path: Path to video file
         output_dir: Where to save frames
-        num_frames: How many frames to extract (default 10, was 25)
+        num_frames: How many frames to extract (default 8 for difficult endoscopy)
         start_sec: Skip first N seconds (to avoid black/unstable frames, default 10)
-        duration_sec: Duration to extract from (default 60 seconds, was 30)
+        duration_sec: Duration to extract from (default 80 seconds)
     """
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
@@ -75,15 +75,15 @@ def main():
         print("  python extract_video_frames.py \\")
         print("    /home/test1/dataset/patients_endoscope_videos \\")
         print("    /home/test1/dataset/extracted_sequences \\")
-        print("    10")
+        print("    8")
         print()
-        print("This will extract 10 frames per video from a 60-second window")
-        print("Fewer frames with larger spacing works better for COLMAP!")
+        print("This will extract 8 frames per video from an 80-second window")
+        print("LARGE spacing (10+ seconds) works better for difficult endoscopy!")
         sys.exit(1)
 
     video_dir = Path(sys.argv[1])
     output_base = Path(sys.argv[2])
-    num_frames = int(sys.argv[3]) if len(sys.argv) > 3 else 10
+    num_frames = int(sys.argv[3]) if len(sys.argv) > 3 else 8
 
     if not video_dir.exists():
         print(f"ERROR: Video directory not found: {video_dir}")
@@ -127,10 +127,10 @@ def main():
                 video_file, output_dir,
                 num_frames=num_frames,
                 start_sec=10,  # Skip first 10 seconds (avoid unstable intro)
-                duration_sec=60  # Extract from 60-second window (larger spacing)
+                duration_sec=80  # Extract from 80-second window (10s spacing)
             )
 
-            if extracted >= 10:  # Need at least 10 frames for COLMAP
+            if extracted >= 8:  # Need at least 8 frames for COLMAP
                 log.write(f"✓ {video_name}: {extracted} frames\n")
                 success_count += 1
             else:
